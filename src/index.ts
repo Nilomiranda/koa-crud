@@ -2,8 +2,10 @@ import "reflect-metadata";
 import Koa from 'koa'
 import dotenv from 'dotenv'
 import { createConnection } from 'typeorm'
+import Router from '@koa/router'
 
 const app = new Koa()
+const router = new Router()
 
 dotenv.config()
 
@@ -16,3 +18,9 @@ createConnection().then(() => {
 }).catch(err => {
   console.error('Error creating database connection', err)
 })
+
+router.get('/', (ctx) => {
+  ctx.body = 'Hello'
+})
+
+app.use(router.routes())
