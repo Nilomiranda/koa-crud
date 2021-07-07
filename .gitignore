@@ -5,3 +5,5 @@ dist
 .DS_Store
 src/.DS_Store
 yarn-error.log
+.gitignore
+ormconfig.json
