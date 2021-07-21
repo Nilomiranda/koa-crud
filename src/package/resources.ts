@@ -7,10 +7,11 @@ const router = new Router()
 interface ResourceOptions {
   prefix?: string;
   path?: string
+  join?: string[]
 }
 
 export const resources = <Entity>(entityClass: new (data: DeepPartial<Entity>) => Entity, options: ResourceOptions): Router.Layer[] => {
-  const { prefix, path } = options
+  const { prefix, path, join = [] } = options
   const resourceName = path || entityClass.name.toLowerCase()
 
   const route = pluralize(resourceName)
@@ -18,14 +19,54 @@ export const resources = <Entity>(entityClass: new (data: DeepPartial<Entity>) =
   const routeUrl = prefix ? `/${prefix}/${route}` : `/${route}`
 
   router.get(routeUrl, async (ctx) => {
-    const { response } = ctx
+    const { response, query } = ctx
 
-    const result = await getManager().getRepository(entityClass).find()
+    let relations: string[] = []
+
+    if (query?.join && typeof query.join === 'string') {
+      relations = [query?.join];
+    }
+
+    if (query?.join && typeof  query.join === 'object') {
+      relations = [...query.join]
+    }
+
+    const result = await getManager().getRepository(entityClass).find({
+      relations: join?.length ? join : relations,
+    })
 
     response.status = 200
 
     return response.body = {
       [route]: result
+    }
+  })
+
+  router.get(`${routeUrl}/:id`, async (ctx) => {
+    const { response, params, query } = ctx
+    const manager = getManager()
+
+    let relations: string[] = []
+
+    if (query?.join && typeof query.join === 'string') {
+      relations = [query?.join];
+    }
+
+    if (query?.join && typeof  query.join === 'object') {
+      relations = [...query.join]
+    }
+
+    const entityToRead = await manager.getRepository(entityClass).findOneOrFail({
+      where: {
+        id: params?.id,
+      },
+      relations: join?.length ? join : relations,
+    })
+
+    response.status = 200
+
+    return response.body = {
+      [resourceName]: entityToRead
     }
   })
 
@@ -42,23 +83,6 @@ export const resources = <Entity>(entityClass: new (data: DeepPartial<Entity>) =
 
     return response.body = {
       [resourceName]: result
-    }
-  })
-
-  router.get(`${routeUrl}/:id`, async (ctx) => {
-    const { response, params } = ctx
-    const manager = getManager()
-
-    const entityToRead = await manager.getRepository(entityClass).findOneOrFail({
-      where: {
-        id: params?.id,
-      }
-    })
-
-    response.status = 200
-
-    return response.body = {
-      [resourceName]: entityToRead
     }
   })
 

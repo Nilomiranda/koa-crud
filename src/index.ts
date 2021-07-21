@@ -2,7 +2,7 @@ import "reflect-metadata";
 import Koa from 'koa'
 import dotenv from 'dotenv'
 import { createConnection } from 'typeorm'
-import router from './src/routes'
+import router from './routes'
 import bodyParser from 'koa-bodyparser'
 const app = new Koa()
 
