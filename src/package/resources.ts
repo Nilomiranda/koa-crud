@@ -1,17 +1,24 @@
 import Router from 'koa-router'
 import { DeepPartial, getManager } from 'typeorm'
 import pluralize from 'pluralize'
+import { ExtendableContext } from 'koa'
 
 const router = new Router()
 
-interface ResourceOptions {
+interface RequestParameterOptions<Entity> {
+  required?: (keyof Entity)[],
+  optional?: (keyof Entity)[]
+}
+
+interface ResourceOptions<Entity> {
   prefix?: string;
   path?: string
   join?: string[]
+  requestParameters?: RequestParameterOptions<Entity>
 }
 
-export const resources = <Entity>(entityClass: new (data: DeepPartial<Entity>) => Entity, options: ResourceOptions): Router.Layer[] => {
-  const { prefix, path, join = [] } = options
+export const resources = <Entity>(entityClass: new (data: DeepPartial<Entity>) => Entity, options: ResourceOptions<Entity>): Router.Layer[] => {
+  const { prefix, path, join = [], requestParameters } = options
   const resourceName = path || entityClass.name.toLowerCase()
 
   const route = pluralize(resourceName)
@@ -75,6 +82,10 @@ export const resources = <Entity>(entityClass: new (data: DeepPartial<Entity>) =
     const { body } = request
     const manager = getManager()
 
+    if (!validatePayload(requestParameters, ctx)) {
+      return
+    }
+
     const newEntityInstance = await manager.getRepository(entityClass).create({...body as any})
 
     const result = await manager.save(newEntityInstance)
@@ -122,4 +133,25 @@ export const resources = <Entity>(entityClass: new (data: DeepPartial<Entity>) =
   })
 
   return router?.stack
+}
+
+export const validatePayload = <Entity>(parametersOptions: RequestParameterOptions<Entity> = { required: [], optional: [] }, context: ExtendableContext): boolean => {
+  const { required } = parametersOptions
+  const { request: { body } } = context
+
+  const bodyKeys = Object.keys(body)
+
+  const missingRequiredParams = required?.filter(requiredParameter => !bodyKeys?.includes(requiredParameter as string))
+
+  if (missingRequiredParams?.length) {
+    context.status = 400
+    context.body = {
+      errors: "Missing required parameters",
+      parameters: missingRequiredParams,
+    }
+
+    return false
+  }
+
+  return true
 }

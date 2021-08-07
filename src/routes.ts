@@ -18,7 +18,7 @@ router.get('/', async (ctx) => {
   }
 })
 
-const userResources = resources(User, { prefix: 'api' })
+const userResources = resources<User>(User, { prefix: 'api', requestParameters: { required: ["name"] } })
 const photoResources = resources(Photo, { prefix: 'api', join: ["user"] })
 
 export default mergeRoutingResources(router, [userResources, photoResources])
